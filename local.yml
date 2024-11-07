@@ -13,7 +13,7 @@
 
       - name: "neovim"
         bash: 
-          - "EDITOR=nvim"
+          - "export EDITOR=nvim"
 
       - name: "fzf"
         bash: 
@@ -39,26 +39,11 @@
       - name: "delta"
 
   tasks:
-      - name: Install or remove packages
-        community.general.homebrew:
-          name: "{{ item.name }}"
-          state: "{{ state }}"
+      - name: Loop through packages
         loop: "{{ packages }}"
-
-      - name: Modify bashrc
-        blockinfile:
-          path: "{{ ansible_env.HOME }}/.bashrc"
-          append_newline: true
-          prepend_newline: true
-          marker: "# {mark} {{ item.0.name }} BLOCK"
-          block: "{{ item.1 }}"
-          state: "{{ state }}"
-        loop: "{{ packages|subelements('bash', skip_missing=true) }}"
-
-      - name: Run commands
-        shell: "{{ item.1 }}"
-        loop: "{{ packages|subelements('commands', skip_missing=true) }}"
-        when: state == "present"
+        loop_control:
+          loop_var: package
+        include_tasks: tasks.yml
 
       - name: Get dotfile from GIT
         git:
