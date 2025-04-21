@@ -38,6 +38,10 @@
 
       - name: "delta"
 
+      - name: "fd"
+
+      - name: "tlrc"
+
   tasks:
       - name: Loop through packages
         loop: "{{ packages }}"
