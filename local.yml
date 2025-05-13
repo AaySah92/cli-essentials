@@ -55,13 +55,13 @@
                 dest: "{{ nvim_dir }}"
             - name: Remove default lazyvim config
               file:
-                path: "{{ lazyvim_config_dir / item }}"
+                path: "{{ lazyvim_config_dir }}/{{ item }}"
                 state: absent
               loop: "{{ lazyvim_dotfiles }}"
             - name: Link custom lazyvim config
               file:
                 src: "{{ config_dir }}/lazyvim/{{ item }}"
-                dest: "{{ lazyvim_config_dir / item }}"
+                dest: "{{ lazyvim_config_dir }}/{{ item }}"
                 state: link
             - name: Configure tmux
               block:
