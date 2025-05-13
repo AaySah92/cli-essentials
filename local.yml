@@ -45,13 +45,13 @@
       block:
         - name: Download dotfiles
           git:
-            repo: git@github.com:AaySah92/config_dotfiles.git
+            repo: https://github.com/AaySah92/config_dotfiles.git
             dest: "{{ config_dir }}"
         - name: Configure neovim (lazyvim)
           block:
             - name: Download lazyvim
               git:
-                repo: git@github.com:LazyVim/starter.git
+                repo: https://github.com/LazyVim/starter.git
                 dest: "{{ nvim_dir }}"
             - name: Remove default lazyvim config
               file:
@@ -63,6 +63,7 @@
                 src: "{{ config_dir }}/lazyvim/{{ item }}"
                 dest: "{{ lazyvim_config_dir }}/{{ item }}"
                 state: link
+              loop: "{{ lazyvim_dotfiles }}"
             - name: Configure tmux
               block:
                 - name: Link tmux config
