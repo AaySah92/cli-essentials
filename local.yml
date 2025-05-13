@@ -3,62 +3,88 @@
   gather_facts: true
   vars:
     state: "present"
-    dotfiles: "{{ ansible_env.HOME }}/.config"
+    config_dir: "{{ ansible_env.HOME }}/config"
+    nvim_dir: "{{ ansible_env.HOME }}/.config/nvim"
+    tmux_dir: "{{ ansible_env.HOME }}/.config/tmux"
+    lazyvim_config_dir: "{{ nvim_dir }}/lua/config"
+    tpm_config_dir: "{{ tmux_dir }}/plugins/tpm"
     packages:
-      - name: "gcc"
-        commands:
-          - ln -s /home/linuxbrew/.linuxbrew/bin/gcc-14 /home/linuxbrew/.linuxbrew/bin/gcc
-
-      - name: "npm"
-
-      - name: "neovim"
-        bash: 
-          - "export EDITOR=nvim"
-
+      - name: "bat"
+      - name: "delta"
+      - name: "fd"
       - name: "fzf"
         bash: 
           - "eval \"$(fzf --bash)\""
           - "alias fzf=\"fzf --reverse\""
-
       - name: "htop"
-
-      - name: "rsync"
-
       - name: "lsd"
-
-      - name: "bat"
-
+        bash: 
+          - "alias ls=\"lsd\""
+      - name: "neovim"
+        bash: 
+          - "export EDITOR=nvim"
       - name: "ripgrep"
-
+      - name: "rsync"
+      - name: "tlrc"
       - name: "tmux"
-
       - name: "zoxide"
         bash: 
           - "eval \"$(zoxide init bash)\""
-
-      - name: "delta"
-
-      - name: "fd"
-
-      - name: "tlrc"
-
+    lazyvim_dotfiles:
+      - autocmds.lua
+      - keymaps.lua
+      - lazy.lua
+      - options.lua
   tasks:
-      - name: Loop through packages
-        loop: "{{ packages }}"
-        loop_control:
-          loop_var: package
-        include_tasks: tasks.yml
-
-      - name: Get dotfile from GIT
-        git:
-          repo: https://github.com/AaySah92/config_dotfiles.git
-          dest: "{{ dotfiles }}"
-        when: state == "present"
-
-      - name: Remove dotfile directory
-        file:
-          path: "{{ dotfiles }}"
-          state: absent
-        when: state == "absent"
-          
-        # https://dev.to/cerico/using-brew-in-a-multi-user-system-2lnl
+    - name: Install packages
+      loop: "{{ packages }}"
+      loop_control:
+        loop_var: package
+      include_tasks: tasks.yml
+    - name: Configure packages
+      block:
+        - name: Download dotfiles
+          git:
+            repo: git@github.com:AaySah92/config_dotfiles.git
+            dest: "{{ config_dir }}"
+        - name: Configure neovim (lazyvim)
+          block:
+            - name: Download lazyvim
+              git:
+                repo: git@github.com:LazyVim/starter.git
+                dest: "{{ nvim_dir }}"
+            - name: Remove default lazyvim config
+              file:
+                path: "{{ lazyvim_config_dir / item }}"
+                state: absent
+              loop: "{{ lazyvim_dotfiles }}"
+            - name: Link custom lazyvim config
+              file:
+                src: "{{ config_dir }}/lazyvim/{{ item }}"
+                dest: "{{ lazyvim_config_dir / item }}"
+                state: link
+            - name: Configure tmux
+              block:
+                - name: Link tmux config
+                  file:
+                    src: "{{ config_dir }}/tmux"
+                    dest: "{{ tmux_dir }}"
+                    state: link
+                - name: Download tpm
+                  git:
+                    repo: https://github.com/tmux-plugins/tpm.git
+                    dest: "{{ tpm_config_dir }}"
+                - name: Install tpm plugins
+                  shell: "{{ tpm_config_dir }}/bin/install_plugins"
+      when: state == "present"
+    - name: Remove dotfile directory
+      file:
+        path: "{{ config_dir }}"
+        state: absent
+      when: state == "absent"
+        
+      # https://dev.to/cerico/using-brew-in-a-multi-user-system-2lnl
+      # go 
+      # go install gopls
+      # starship
+      # nerd font
