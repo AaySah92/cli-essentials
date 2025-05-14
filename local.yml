@@ -3,11 +3,16 @@
   gather_facts: true
   vars:
     state: "present"
+
     config_dir: "{{ ansible_env.HOME }}/config"
     nvim_dir: "{{ ansible_env.HOME }}/.config/nvim"
     tmux_dir: "{{ ansible_env.HOME }}/.config/tmux"
+    oh_my_posh_dir: "{{ ansible_env.HOME }}/.config/oh-my-posh"
+
     lazyvim_config_dir: "{{ nvim_dir }}/lua/config"
     tpm_config_dir: "{{ tmux_dir }}/plugins/tpm"
+    oh_my_posh_theme: catppuccin.omp.json
+
     bashrc_entires:
       - package: fzf
         entries:
@@ -19,6 +24,9 @@
       - package: nvim
         entries:
           - "export EDITOR=nvim"
+      - package: oh-my-posh
+        entries:
+          - "eval \"$(oh-my-posh init bash --config {{ oh_my_posh_dir }}/{{ oh_my_posh_theme }})\""
       - package: zoxide
         entries:
           - "eval \"$(zoxide init bash)\""
@@ -28,6 +36,15 @@
       - lazy.lua
       - options.lua
   tasks:
+    - name: Setup nerdfont
+      block:
+        - name: Install nerdfont
+          community.general.homebrew_cask: 
+            name: font-jetbrains-mono-nerd-font
+            state: "{{ state }}"
+        - name: Refresh font cache
+          shell: fc-cache -f
+
     - name: Setup aliases / environment variables / bash integrations
       blockinfile:
         path: "{{ ansible_env.HOME }}/.bashrc"
@@ -42,6 +59,7 @@
       loop: "{{ bashrc_entires }}"
 
     - name: Configure packages
+      when: state == "present"
       block:
         - name: Download configurations
           git:
@@ -65,29 +83,34 @@
                 dest: "{{ lazyvim_config_dir }}/{{ item }}"
                 state: link
               loop: "{{ lazyvim_config_files }}"
-            - name: Configure tmux
-              block:
-                - name: Link tmux config
-                  file:
-                    src: "{{ config_dir }}/tmux"
-                    dest: "{{ tmux_dir }}"
-                    state: link
-                - name: Download tpm
-                  git:
-                    repo: https://github.com/tmux-plugins/tpm.git
-                    dest: "{{ tpm_config_dir }}"
-                    force: true
-                - name: Install tpm plugins
-                  shell: "{{ tpm_config_dir }}/bin/install_plugins"
-      when: state == "present"
+        - name: Configure tmux
+          block:
+            - name: Link tmux config
+              file:
+                src: "{{ config_dir }}/tmux"
+                dest: "{{ tmux_dir }}"
+                state: link
+            - name: Download tpm
+              git:
+                repo: https://github.com/tmux-plugins/tpm.git
+                dest: "{{ tpm_config_dir }}"
+                force: true
+            - name: Install tpm plugins
+              shell: "{{ tpm_config_dir }}/bin/install_plugins"
+        - name: Configure oh-my-posh
+          block:
+            - name: Create oh-my-posh theme directory
+              file:
+                path: "{{ oh_my_posh_dir }}"
+                state: directory
+            - name: Download oh-my-posh theme
+              get_url:
+                url: "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/refs/heads/main/themes/{{ oh_my_posh_theme }}"
+                dest: "{{ oh_my_posh_dir }}/{{ oh_my_posh_theme }}"
+                force: true
+
     - name: Remove configurations
+      when: state == "absent"
       file:
         path: "{{ config_dir }}"
         state: absent
-      when: state == "absent"
-        
-      # https://dev.to/cerico/using-brew-in-a-multi-user-system-2lnl
-      # go 
-      # go install gopls
-      # starship
-      # nerd font
