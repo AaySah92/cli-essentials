@@ -9,7 +9,7 @@ setup:
 	echo 'export PATH="/home/linuxbrew/.linuxbrew/opt/binutils/bin:$$PATH"' >> ~/.bashrc
 
 install:
-	brew install ansible && ansible-playbook local.yml
+	brew bundle && ansible-playbook local.yml
 
 remove:
 	ansible-playbook local.yml -e "state=absent" && brew remove ansible

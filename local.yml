@@ -8,42 +8,42 @@
     tmux_dir: "{{ ansible_env.HOME }}/.config/tmux"
     lazyvim_config_dir: "{{ nvim_dir }}/lua/config"
     tpm_config_dir: "{{ tmux_dir }}/plugins/tpm"
-    packages:
-      - name: "bat"
-      - name: "delta"
-      - name: "fd"
-      - name: "fzf"
-        bash: 
+    bashrc_entires:
+      - package: fzf
+        entries:
           - "eval \"$(fzf --bash)\""
           - "alias fzf=\"fzf --reverse\""
-      - name: "htop"
-      - name: "lsd"
-        bash: 
+      - package: lsd
+        entries:
           - "alias ls=\"lsd\""
-      - name: "neovim"
-        bash: 
+      - package: nvim
+        entries:
           - "export EDITOR=nvim"
-      - name: "ripgrep"
-      - name: "rsync"
-      - name: "tlrc"
-      - name: "tmux"
-      - name: "zoxide"
-        bash: 
+      - package: zoxide
+        entries:
           - "eval \"$(zoxide init bash)\""
-    lazyvim_dotfiles:
+    lazyvim_config_files:
       - autocmds.lua
       - keymaps.lua
       - lazy.lua
       - options.lua
   tasks:
-    - name: Install packages
-      loop: "{{ packages }}"
-      loop_control:
-        loop_var: package
-      include_tasks: tasks.yml
+    - name: Setup aliases / environment variables / bash integrations
+      blockinfile:
+        path: "{{ ansible_env.HOME }}/.bashrc"
+        append_newline: true
+        prepend_newline: true
+        marker: "# {mark} {{ item.package }} BLOCK"
+        block: |
+          {% for entry in item.entries %}
+            {{ entry }}
+          {% endfor %}
+        state: "{{ state }}"
+      loop: "{{ bashrc_entires }}"
+
     - name: Configure packages
       block:
-        - name: Download dotfiles
+        - name: Download configurations
           git:
             repo: https://github.com/AaySah92/config_dotfiles.git
             dest: "{{ config_dir }}"
@@ -53,17 +53,18 @@
               git:
                 repo: https://github.com/LazyVim/starter.git
                 dest: "{{ nvim_dir }}"
+                force: true
             - name: Remove default lazyvim config
               file:
                 path: "{{ lazyvim_config_dir }}/{{ item }}"
                 state: absent
-              loop: "{{ lazyvim_dotfiles }}"
+              loop: "{{ lazyvim_config_files }}"
             - name: Link custom lazyvim config
               file:
                 src: "{{ config_dir }}/lazyvim/{{ item }}"
                 dest: "{{ lazyvim_config_dir }}/{{ item }}"
                 state: link
-              loop: "{{ lazyvim_dotfiles }}"
+              loop: "{{ lazyvim_config_files }}"
             - name: Configure tmux
               block:
                 - name: Link tmux config
@@ -75,10 +76,11 @@
                   git:
                     repo: https://github.com/tmux-plugins/tpm.git
                     dest: "{{ tpm_config_dir }}"
+                    force: true
                 - name: Install tpm plugins
                   shell: "{{ tpm_config_dir }}/bin/install_plugins"
       when: state == "present"
-    - name: Remove dotfile directory
+    - name: Remove configurations
       file:
         path: "{{ config_dir }}"
         state: absent
